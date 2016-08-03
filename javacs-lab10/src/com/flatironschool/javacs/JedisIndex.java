@@ -67,8 +67,8 @@ public class JedisIndex {
 	 * @return Set of URLs.
 	 */
 	public Set<String> getURLs(String term) {
-        // FILL THIS IN!
-		return null;
+        Set<String> urls = jedis.smembers(urlSetKey(term));
+		return urls;
 	}
 
     /**
@@ -78,8 +78,14 @@ public class JedisIndex {
 	 * @return Map from URL to count.
 	 */
 	public Map<String, Integer> getCounts(String term) {
-        // FILL THIS IN!
-		return null;
+		Map<String, Integer> counts = new HashMap<String, Integer>();
+        Set<String> urls = getURLs(term);
+        for(String url : urls)
+        {
+        	Integer count = getCount(url, term);
+        	counts.put(url,count);
+        }
+		return counts;
 	}
 
     /**
@@ -90,8 +96,9 @@ public class JedisIndex {
 	 * @return
 	 */
 	public Integer getCount(String url, String term) {
-        // FILL THIS IN!
-		return null;
+        String key = termCounterKey(url);
+        Integer count = Integer.parseInt(jedis.hget(key, term));
+		return count;
 	}
 
 
@@ -102,7 +109,17 @@ public class JedisIndex {
 	 * @param paragraphs  Collection of elements that should be indexed.
 	 */
 	public void indexPage(String url, Elements paragraphs) {
-        // FILL THIS IN!
+        TermCounter counter = new TermCounter(url);
+        counter.processElements(paragraphs);
+        Transaction trans = jedis.multi();
+        trans.del(termCounterKey(url));
+        for(String term : counter.keySet())
+        {
+        	Integer count = counter.get(term);
+        	trans.hset(termCounterKey(url), term, count.toString());
+        	trans.sadd(urlSetKey(term), url);
+        }
+        trans.exec();
 	}
 
 	/**
